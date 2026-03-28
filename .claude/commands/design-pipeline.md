@@ -389,40 +389,42 @@ You are the **Frontend Developer**. Implement the feature as production-ready Ne
    ```
    Read 2-3 key screens to understand the UI structure, component patterns, and interactions.
 
-2. Plan the implementation:
+2. Check the project root and plan the implementation:
+   ```bash
+   ls package.json next.config.ts next.config.js 2>/dev/null
+   ls app/ components/ lib/ 2>/dev/null
+   ```
+   - If `package.json` exists → this is an existing project. Read it to understand installed deps. Add feature files into the existing structure.
+   - If `package.json` does NOT exist → scaffold a new Next.js project:
+     ```bash
+     npx create-next-app@latest . --typescript --tailwind --eslint --app --no-git --yes
+     npx shadcn@latest init --defaults
+     ```
    - Map each screen to a Next.js route under `app/`
-   - Identify shared components vs route-specific components
-   - Identify which components need `'use client'` (event handlers, hooks)
-   - Identify data requirements: what queries and mutations are needed?
-   - Plan the file structure following the feature folder convention
+   - Identify shared vs route-specific components
+   - Identify which components need `'use client'`
+   - Identify data requirements: queries and mutations
 
-3. Create implementation in `.design-pipeline/implementation/` as a complete, runnable Next.js project:
+3. Write feature code directly into the **project root** following the feature folder convention:
    ```
-   .design-pipeline/implementation/
-     package.json             ← dependencies (next, react, tailwindcss, shadcn, etc.)
-     next.config.ts
-     tailwind.config.ts
-     tsconfig.json
-     components.json          ← shadcn/ui config
-     app/
-       layout.tsx             ← root layout
-       globals.css
-       [feature-route]/
-         _components/         ← route-specific components
-         _actions.ts          ← server actions (mutations)
-         _actions.test.ts     ← server action tests
-         _queries.ts          ← data fetching
-         _queries.test.ts     ← query tests
-         page.tsx             ← server component, fetches + renders
-         loading.tsx          ← suspense fallback
-         error.tsx            ← error boundary
-     components/
-       ui/                    ← shadcn/ui components (install, don't import from npm)
-     lib/
-       utils.ts               ← cn() helper
-       schema.ts              ← drizzle schema (if DB needed)
-       db.ts                  ← turso client (if DB needed)
+   app/
+     [feature-route]/
+       _components/         ← route-specific components
+       _actions.ts          ← server actions (mutations)
+       _actions.test.ts
+       _queries.ts          ← data fetching (no business logic)
+       _queries.test.ts
+       page.tsx             ← server component: fetches + renders
+       loading.tsx
+       error.tsx
+   components/
+     ui/                    ← shadcn/ui components (only if not already present)
+   lib/
+     utils.ts               ← cn() helper (only if not already present)
+     schema.ts              ← drizzle schema (if DB needed)
+     db.ts                  ← turso client (if DB needed)
    ```
+   **Do NOT create a nested project directory. All files go in the project root.**
 
 4. Enforce hard limits from frontend-developer.md — no exceptions:
    - **≤200 lines per file** — split if over
@@ -472,8 +474,8 @@ You are the **Frontend Developer**. Implement the feature as production-ready Ne
 After writing/updating all code, verify the implementation compiles and looks right:
 
 ```bash
-# Install deps and build — catches TypeScript and module errors
-cd .design-pipeline/implementation && npm install --silent && npm run build 2>&1 | tail -30
+# Build from project root — catches TypeScript and module errors
+npm run build 2>&1 | tail -30
 ```
 
 - If the build fails: read the error output, fix all errors, re-run build before proceeding
@@ -482,7 +484,7 @@ cd .design-pipeline/implementation && npm install --silent && npm run build 2>&1
 Then start the dev server and do a quick visual spot-check with Playwright:
 ```bash
 pkill -f "next dev" 2>/dev/null
-cd .design-pipeline/implementation && npm run dev -- --port 3765 &
+npm run dev -- --port 3765 &
 sleep 5  # wait for next dev to boot
 ```
 
@@ -516,10 +518,10 @@ Read `.claude/skills/frontend-developer.md` for code quality criteria.
 
 **Part 1 — Run the app and test it with Playwright:**
 
-Start the dev server:
+Start the dev server from the project root:
 ```bash
 pkill -f "next dev" 2>/dev/null
-cd .design-pipeline/implementation && npm run dev -- --port 3765 &
+npm run dev -- --port 3765 &
 sleep 6  # wait for Next.js to boot
 ```
 
@@ -552,9 +554,10 @@ If the dev server fails to start: flag it as a BLOCKING issue, note the error ou
 
 **Part 2 — Code review:**
 
-List all implementation files:
+List all feature files written by the developer (scoped to the feature route and shared lib files — exclude node_modules and .next):
 ```bash
-find .design-pipeline/implementation -type f -name "*.ts" -o -name "*.tsx" | sort
+FEATURE_ROUTE=$(grep "^feature_dir:" .design-pipeline/pipeline-state.md | sed 's/.*\///' | tr -d '"')
+find app/"$FEATURE_ROUTE" components lib -type f \( -name "*.ts" -o -name "*.tsx" \) 2>/dev/null | grep -v node_modules | grep -v .next | sort
 ```
 
 For each file, check:
@@ -693,11 +696,11 @@ You are the **Presenter**. Compile the final deliverable.
 - Spec: `.design-pipeline/spec.md`
 - Mockups: `.design-pipeline/mockups/index.html`
 - All screens: `.design-pipeline/mockups/screens/`
-- Implementation: `.design-pipeline/implementation/` (complete Next.js project)
+- Implementation: `app/[feature-route]/` in project root
 - Code review: `.design-pipeline/code-review.md`
 ```
 
-3. **Publish outputs to the feature spec folder:**
+3. **Publish design artifacts to the feature spec folder:**
 
 Read `feature_dir` from `.design-pipeline/pipeline-state.md`, then run:
 
@@ -709,14 +712,12 @@ if [[ -n "$FEATURE_DIR" ]] && [[ -d "$FEATURE_DIR" ]]; then
   cp .design-pipeline/spec.md "$FEATURE_DIR/spec.md"
   cp .design-pipeline/design-rationale.md "$FEATURE_DIR/design-rationale.md"
   cp .design-pipeline/final-proposition.md "$FEATURE_DIR/design-proposition.md"
-  # Copy implementation if it exists
-  if [[ -d ".design-pipeline/implementation" ]]; then
-    cp -r .design-pipeline/implementation "$FEATURE_DIR/implementation"
-    echo "✅ Implementation published to $FEATURE_DIR/implementation"
-  fi
+  [[ -f ".design-pipeline/code-review.md" ]] && cp .design-pipeline/code-review.md "$FEATURE_DIR/code-review.md"
   echo "✅ Published to $FEATURE_DIR"
 fi
 ```
+
+Note: implementation code is already in the project root — no copying needed.
 
 4. **Stop the loop** by running this bash command:
 
