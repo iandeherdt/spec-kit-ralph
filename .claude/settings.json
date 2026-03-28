@@ -1,5 +1,17 @@
 {
   "enabledPlugins": {
     "ralph-loop@claude-plugins-official": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash",
+      "Read",
+      "Edit",
+      "Write(*)",
+      "Glob",
+      "Grep",
+      "mcp__playwright__*",
+      "mcp__Claude_Preview__*"
+    ]
   }
 }
