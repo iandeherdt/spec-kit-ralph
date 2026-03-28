@@ -1,6 +1,6 @@
 ---
-description: "Multi-agent design pipeline: specify → critique → design → critique → deliver"
-argument-hint: "REQUIREMENT [--prompt PATH] [--analysis-cycles N] [--design-cycles N] [--skip-analysis] [--skip-design] [--spec PATH]"
+description: "Multi-agent design pipeline: specify → critique → design → critique → code → critique → deliver"
+argument-hint: "REQUIREMENT [--prompt PATH] [--analysis-cycles N] [--design-cycles N] [--dev-cycles N] [--skip-analysis] [--skip-design] [--skip-dev] [--spec PATH]"
 ---
 
 # Design Pipeline
@@ -16,7 +16,9 @@ Extract these from `$ARGUMENTS`:
 - **--analysis-cycles N**: Max analysis sub-loop iterations (default: 3)
 - **--design-cycles N**: Max design sub-loop iterations (default: 3)
 - **--skip-analysis**: Skip the analysis sub-loop. If `--spec` is also provided, use that spec directly. Otherwise, planner creates spec in one pass without critic review.
-- **--skip-design**: Skip the design sub-loop. Outputs approved spec as final deliverable.
+- **--skip-design**: Skip the design sub-loop.
+- **--skip-dev**: Skip the development sub-loop. Outputs approved designs as final deliverable.
+- **--dev-cycles N**: Max dev sub-loop iterations (default: 3)
 - **--spec PATH**: Path to an existing spec.md file (implies `--skip-analysis`)
 
 ## Validation
@@ -32,7 +34,8 @@ Extract these from `$ARGUMENTS`:
 ```
 analysis_iters = skip_analysis ? 0 : (analysis_cycles * 2 + 1)
 design_iters = skip_design ? 0 : (design_cycles * 2 + 1)
-max_iterations = analysis_iters + design_iters + 2  # +2 for init + present
+dev_iters = skip_dev ? 0 : (dev_cycles * 2 + 1)
+max_iterations = analysis_iters + design_iters + dev_iters + 2  # +2 for init + present
 ```
 
 ## Initialize Ralph Loop
@@ -89,8 +92,11 @@ analysis_cycle: 1
 max_analysis_cycles: {{ANALYSIS_CYCLES}}
 design_cycle: 1
 max_design_cycles: {{DESIGN_CYCLES}}
+dev_cycle: 1
+max_dev_cycles: {{DEV_CYCLES}}
 skip_analysis: {{SKIP_ANALYSIS}}
 skip_design: {{SKIP_DESIGN}}
+skip_dev: {{SKIP_DEV}}
 existing_spec: "{{EXISTING_SPEC}}"
 feature_dir: ""
 design_version: 0
@@ -354,9 +360,279 @@ X/10 — [one sentence on what's holding it back]
    - If ANY screen NEEDS_WORK AND `design_cycle < max_design_cycles`:
      → Increment `design_cycle`, set `current_role: designer`
    - If all screens APPROVED OR `design_cycle >= max_design_cycles`:
-     → Set `current_role: presenter`
+     → Set `current_role: developer` (or `presenter` if `skip_dev` is true)
 
 Append to Log: `- [iteration N] design_critic: [X approved, Y need work, perception score N/10]`
+
+---
+
+### Role: developer
+
+You are the **Frontend Developer**. Implement the feature as production-ready Next.js code.
+
+**Read context (be selective — large files fill context fast):**
+- **Always read**: `.design-pipeline/pipeline-state.md` (already done in Step 1), `.design-pipeline/spec.md`
+- **First iteration only**: `.design-pipeline/design-rationale.md`, `.claude/skills/frontend-developer.md`, `.design-pipeline/mockups/index.html` (skim for screen structure)
+- **Subsequent iterations only**: `.design-pipeline/code-review.md` (critic feedback — this is all you need)
+- **Do NOT re-read** frontend-developer.md, spec.md, or mockups on subsequent iterations
+
+**First dev iteration:**
+
+1. Survey the mockup screens:
+   ```bash
+   ls .design-pipeline/mockups/screens/
+   ```
+   Read 2-3 key screens to understand the UI structure, component patterns, and interactions.
+
+2. Plan the implementation:
+   - Map each screen to a Next.js route under `app/`
+   - Identify shared components vs route-specific components
+   - Identify which components need `'use client'` (event handlers, hooks)
+   - Identify data requirements: what queries and mutations are needed?
+   - Plan the file structure following the feature folder convention
+
+3. Create implementation in `.design-pipeline/implementation/` as a complete, runnable Next.js project:
+   ```
+   .design-pipeline/implementation/
+     package.json             ← dependencies (next, react, tailwindcss, shadcn, etc.)
+     next.config.ts
+     tailwind.config.ts
+     tsconfig.json
+     components.json          ← shadcn/ui config
+     app/
+       layout.tsx             ← root layout
+       globals.css
+       [feature-route]/
+         _components/         ← route-specific components
+         _actions.ts          ← server actions (mutations)
+         _actions.test.ts     ← server action tests
+         _queries.ts          ← data fetching
+         _queries.test.ts     ← query tests
+         page.tsx             ← server component, fetches + renders
+         loading.tsx          ← suspense fallback
+         error.tsx            ← error boundary
+     components/
+       ui/                    ← shadcn/ui components (install, don't import from npm)
+     lib/
+       utils.ts               ← cn() helper
+       schema.ts              ← drizzle schema (if DB needed)
+       db.ts                  ← turso client (if DB needed)
+   ```
+
+4. Enforce hard limits from frontend-developer.md — no exceptions:
+   - **≤200 lines per file** — split if over
+   - **≤40 lines per function** — extract helpers if over
+   - **≤3 indentation levels** — use early returns
+   - **≤6 props per component** — use composition
+
+5. Translate mockup designs to Tailwind:
+   - Use the visual hierarchy, spacing, and colors from the mockup
+   - Map design tokens to Tailwind classes (e.g., the mockup's primary color → a consistent Tailwind color)
+   - Use shadcn/ui components as the foundation — don't rebuild what shadcn provides
+   - Use `cn()` for conditional classes
+
+6. Write tests co-located with each file:
+   - All Server Actions: happy path + validation error test
+   - All components with conditional rendering: each branch
+   - All forms: valid input + invalid input
+
+**Subsequent dev iterations (critic flagged rework):**
+1. Read `.design-pipeline/code-review.md`
+2. Address every NEEDS_WORK item — do not skip any
+3. After fixes, write `.design-pipeline/dev-response.md`:
+
+```markdown
+# Dev Response — Cycle {{N}}
+
+## Issues Addressed
+
+### File: [filepath]
+- **Issue**: [exact issue text from code-review.md]
+  **Fix applied**: [what was changed — function name, line range, approach]
+
+- **Issue**: [next issue]
+  **Fix applied**: [...]
+
+### File: [next file]
+...
+
+## Preserved (APPROVED files — not touched)
+- [filepath]: no changes
+```
+
+4. Preserve what was APPROVED — do not touch approved files unless forced by a dependency
+
+**Self-evaluation — build verification + visual check:**
+
+After writing/updating all code, verify the implementation compiles and looks right:
+
+```bash
+# Install deps and build — catches TypeScript and module errors
+cd .design-pipeline/implementation && npm install --silent && npm run build 2>&1 | tail -30
+```
+
+- If the build fails: read the error output, fix all errors, re-run build before proceeding
+- Do NOT hand off to code_critic with a broken build
+
+Then start the dev server and do a quick visual spot-check with Playwright:
+```bash
+pkill -f "next dev" 2>/dev/null
+cd .design-pipeline/implementation && npm run dev -- --port 3765 &
+sleep 5  # wait for next dev to boot
+```
+
+For each main route (2-3 key screens only — keep it fast):
+- Navigate to `http://localhost:3765/[route]` at 1280px
+- Take ONE screenshot — does it render? Does it look like the mockup?
+- If obviously broken (white screen, layout explosion, wrong styles): fix it now
+- Do NOT do exhaustive testing — that's code_critic's job
+
+```bash
+pkill -f "next dev" 2>/dev/null
+```
+
+**If npm install or next dev is unavailable: skip self-eval and note it in the log.**
+
+**Update state:** Set `current_role: code_critic`
+
+Append to Log: `- [iteration N] developer: [created/updated X files, Y components, Z tests, build status]`
+
+---
+
+### Role: code_critic
+
+You are the **QA Engineer**. You have two jobs: verify the implementation matches the approved designs (visual fidelity + functional behaviour), and enforce frontend-developer.md code standards. You don't rubber-stamp. You don't ship broken things.
+
+Read `.claude/skills/frontend-developer.md` for code quality criteria.
+
+**On cycle 2+:** Read `.design-pipeline/dev-response.md` to see what the developer claims to have fixed. Verify each claimed fix — against screenshots and/or source files — before accepting it.
+
+---
+
+**Part 1 — Run the app and test it with Playwright:**
+
+Start the dev server:
+```bash
+pkill -f "next dev" 2>/dev/null
+cd .design-pipeline/implementation && npm run dev -- --port 3765 &
+sleep 6  # wait for Next.js to boot
+```
+
+For each route in the implementation, do the following:
+
+1. Navigate to `http://localhost:3765/[route]` in Playwright
+2. **Visual fidelity check** — take screenshots at 1280px and 375px:
+   - Save as `.design-pipeline/screenshots/impl-[route]-desktop.png`
+   - Save as `.design-pipeline/screenshots/impl-[route]-mobile.png`
+   - Compare against the designer's approved screenshots at `.design-pipeline/screenshots/[screen]-desktop.png` and `[screen]-mobile.png`
+   - Look for: wrong colors, wrong typography, missing components, broken layouts, spacing drift, missing interactive states
+   - The implementation must match the design's visual intent — not pixel-perfect, but clearly the same product
+3. **Functional behavior check** — test each user story from spec.md:
+   - Click every button and interactive element — do they respond?
+   - Submit forms — do they validate? Do success/error states appear?
+   - Navigate between routes — do links work? Does state persist correctly?
+   - Test empty states — are they present and designed?
+   - Test error paths — what happens if a fetch fails?
+4. **Responsive check** at 375px:
+   - Does the mobile layout work? Are tap targets reachable?
+   - Does content overflow or clip?
+
+```bash
+pkill -f "next dev" 2>/dev/null
+```
+
+If the dev server fails to start: flag it as a BLOCKING issue, note the error output, skip Playwright tests.
+
+---
+
+**Part 2 — Code review:**
+
+List all implementation files:
+```bash
+find .design-pipeline/implementation -type f -name "*.ts" -o -name "*.tsx" | sort
+```
+
+For each file, check:
+- **Hard limits** (BLOCKING — no exceptions):
+  - File length: `wc -l [file]` — must be ≤200 lines
+  - Scan for functions >40 lines
+  - Scan for indentation >3 levels deep
+  - Scan for components with >6 props
+- **Architecture**:
+  - Server vs Client boundary correct? (`'use client'` only for event handlers / hooks / browser APIs)
+  - Feature folder structure followed? (`_components/`, `_actions.ts`, `_queries.ts` pattern)
+  - No business logic in `_queries.ts`?
+  - Server Actions validate with Zod before touching DB?
+- **Code quality**:
+  - Early returns over nesting?
+  - Derived state, not synced state with `useEffect`?
+  - No magic numbers or strings — named constants?
+  - Functions named for what they do (`handleSubmit`, not `onClick`)?
+- **Tailwind**: utility classes only, `cn()` for conditionals, mobile-first responsive?
+- **shadcn/ui**: using shadcn as foundation, extending via `className` not wrappers?
+- **Tests**: present for all Server Actions, all conditional renders, all forms?
+
+---
+
+**Write `.design-pipeline/code-review.md`:**
+
+```markdown
+# Code Review — Cycle {{N}}
+
+## Overall Assessment
+[1-2 sentence summary of the implementation quality and design fidelity]
+
+## Visual Fidelity
+
+### Route: /[route]
+**Match**: MATCHES | DIVERGES
+**Discrepancies** (if DIVERGES):
+- [what's different between implementation screenshot and designer screenshot]
+- [e.g. "primary button is slate-600, designer used indigo-600"]
+
+### Route: /[next route]
+...
+
+## Functional Testing
+
+### User Story: [story name]
+**Status**: PASS | FAIL
+**Failures** (if FAIL):
+- [what didn't work and exactly what was tested]
+
+### User Story: [next story]
+...
+
+## Code Quality
+
+### File: [filepath]
+**Verdict**: APPROVED | NEEDS_WORK
+**Issues** (if NEEDS_WORK):
+- [HARD_LIMIT | ARCHITECTURE | QUALITY | TEST] [specific issue — file, line range, exact fix]
+
+### File: [next file]
+...
+
+## Fix Verification (cycle 2+ only)
+- ✅ [issue summary] — confirmed fixed
+- ❌ [issue summary] — still present, re-flagging above
+
+## Summary
+- Routes tested: N
+- Visual fidelity: N matching, N diverging
+- User stories: N passing, N failing
+- Files reviewed: N approved, N needs work
+- Hard limit violations: N
+- Missing tests: N
+```
+
+**Decision:**
+- If ANY route DIVERGES or story FAILS or file NEEDS_WORK AND `dev_cycle < max_dev_cycles`:
+  → Increment `dev_cycle`, set `current_role: developer`
+- If all pass OR `dev_cycle >= max_dev_cycles`:
+  → Set `current_role: presenter`
+
+Append to Log: `- [iteration N] code_critic: [N routes match, N stories pass, N files approved]`
 
 ---
 
@@ -399,15 +675,21 @@ You are the **Presenter**. Compile the final deliverable.
 ## Iteration History
 - Analysis cycles completed: N
 - Design cycles completed: N
+- Development cycles completed: N
 - Key changes across iterations: [summary]
 
 ## Open Questions
 [Any remaining ambiguities or decisions for the user]
 
+## Implementation
+[If dev loop ran: summary of what was built — routes, key components, test coverage]
+
 ## Files
 - Spec: `.design-pipeline/spec.md`
 - Mockups: `.design-pipeline/mockups/index.html`
 - All screens: `.design-pipeline/mockups/screens/`
+- Implementation: `.design-pipeline/implementation/` (complete Next.js project)
+- Code review: `.design-pipeline/code-review.md`
 ```
 
 3. **Publish outputs to the feature spec folder:**
@@ -422,6 +704,11 @@ if [[ -n "$FEATURE_DIR" ]] && [[ -d "$FEATURE_DIR" ]]; then
   cp .design-pipeline/spec.md "$FEATURE_DIR/spec.md"
   cp .design-pipeline/design-rationale.md "$FEATURE_DIR/design-rationale.md"
   cp .design-pipeline/final-proposition.md "$FEATURE_DIR/design-proposition.md"
+  # Copy implementation if it exists
+  if [[ -d ".design-pipeline/implementation" ]]; then
+    cp -r .design-pipeline/implementation "$FEATURE_DIR/implementation"
+    echo "✅ Implementation published to $FEATURE_DIR/implementation"
+  fi
   echo "✅ Published to $FEATURE_DIR"
 fi
 ```
