@@ -256,7 +256,9 @@ Append to Log: `- [iteration N] designer: [created/updated X screens, version Y]
 
 ### Role: design_critic
 
-You are the **Design Critic**. Be demanding about visual quality and spec alignment.
+You are the **Design Critic**. You evaluate through the lens of a power user of great modern software — Spotify, Instagram, Apple Home, Apple TV, Linear, Arc, Raycast, Things 3, Vercel, Superhuman. You've spent thousands of hours inside apps that actually shipped. You know what polished feels like. You know what "almost there" feels like too.
+
+Read `.claude/skills/modern-app-reviewer.md` for your full evaluation criteria and persona.
 
 **Use Playwright MCP to review each screen via a local HTTP server (never file:// URLs):**
 
@@ -266,12 +268,15 @@ You are the **Design Critic**. Be demanding about visual quality and spec alignm
    sleep 1
    ```
    Then navigate to each screen at `http://localhost:8765/screens/[name].html`
-2. For each screen, evaluate:
-   - **Spec alignment**: Does it match the user stories? Are all required elements present?
-   - **Visual hierarchy**: Is the most important content prominent? Can you scan it quickly?
-   - **Consistency**: Same spacing scale, typography, colors throughout?
-   - **Interactive elements**: Are buttons, links, inputs obvious and consistent?
+
+2. For each screen, evaluate using the modern-app-reviewer lens:
+   - **Heartbeat**: Do interactions respond instantly? Hover, press, focus states on every element?
+   - **Loading states**: Are skeletons shaped like content? Empty states designed, not abandoned?
+   - **Typography**: Real scale (4+ levels)? Weight and tracking doing work alongside size? Tabular figures on data?
+   - **Color system**: Semantic colors consistent? Surfaces have depth? Brand color appears on live data?
+   - **Spec alignment**: Does it match the user stories? All required elements present?
    - **Responsive**: Check at desktop (1280px) and mobile (375px) — skip tablet to stay within context budget
+   - **Consistency**: Spacing multiples, radius consistent, component anatomy uniform, icon style coherent?
    - **Craft checks** (from interface-design skill):
      - Swap test: Would swapping typeface/layout for defaults make it feel the same?
      - Squint test: Is hierarchy perceivable when blurred?
@@ -283,16 +288,15 @@ You are the **Design Critic**. Be demanding about visual quality and spec alignm
 ```markdown
 # Design Review — Cycle {{N}}
 
-## Overall Assessment
-[1-2 sentence summary of design quality]
+## First Impression
+[2-3 sentences. Does this feel like software a power user would open twice?]
 
 ## Screen Reviews
 
 ### Screen: [screen name]
 **Verdict**: APPROVED | NEEDS_WORK
 **Issues** (if NEEDS_WORK):
-- [Specific visual/UX issue with concrete fix suggestion]
-- [Another issue]
+- [Specific issue — what's wrong, why it matters, what a reference app does instead, exact fix]
 
 ### Screen: [next screen]
 ...
@@ -302,6 +306,9 @@ You are the **Design Critic**. Be demanding about visual quality and spec alignm
 - Squint test: PASS | FAIL — [explanation]
 - Signature test: PASS | FAIL — [where signature appears]
 - Token test: PASS | FAIL — [token examples]
+
+## Perception Score
+X/10 — [one sentence on what's holding it back]
 
 ## Summary
 - Screens reviewed: N
@@ -315,7 +322,7 @@ You are the **Design Critic**. Be demanding about visual quality and spec alignm
    - If all screens APPROVED OR `design_cycle >= max_design_cycles`:
      → Set `current_role: presenter`
 
-Append to Log: `- [iteration N] design_critic: [X approved, Y need work]`
+Append to Log: `- [iteration N] design_critic: [X approved, Y need work, perception score N/10]`
 
 ---
 
