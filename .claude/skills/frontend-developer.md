@@ -164,6 +164,54 @@ queries/
 
 ---
 
+## Testing
+
+Tests are not optional. Every feature ships with tests.
+
+**Stack:**
+- **Vitest** for unit and integration tests
+- **React Testing Library** for component tests
+- **Playwright** for end-to-end tests covering critical user flows
+
+**What to test and how:**
+
+| What | Tool | Approach |
+|------|------|----------|
+| Pure functions, utils, formatters | Vitest | Input → output, cover edge cases |
+| Server Actions | Vitest | Mock DB, test validation + return values |
+| React components | React Testing Library | Render → interact → assert visible output. Never assert implementation details (class names, internal state) |
+| Full user flows | Playwright | Happy path + one failure path per flow |
+
+**File co-location:** Test files live next to what they test.
+```
+app/dashboard/
+  _components/
+    AssetCard.tsx
+    AssetCard.test.tsx       ← component test
+  _actions.ts
+  _actions.test.ts           ← server action test
+```
+E2E tests live in `e2e/` at the project root.
+
+**What makes a good test:**
+- Tests user behaviour, not implementation. "When I click Delete, the item disappears" — not "deleteItem() was called with id 42"
+- One assertion per concept. Multiple `expect()` calls are fine if they all test the same behaviour
+- Fails for the right reason. A test that passes when the feature is broken is worse than no test
+- Fast. Unit and component tests must run in milliseconds. Slow tests don't get run
+
+**Minimum coverage per feature:**
+- All Server Actions: happy path + validation errors
+- All components with conditional rendering: each branch rendered
+- All form submissions: valid + invalid input
+- All E2E critical flows: the path a real user would take to complete the feature's primary job
+
+**Never:**
+- Test that shadcn/ui components render correctly — they're already tested upstream
+- Mock what you don't own (browser APIs are fine to mock; your own modules are not)
+- Write tests after the fact as a checkbox exercise — tests written while coding catch real bugs
+
+---
+
 ## Deployment Awareness
 
 Deployment target (Vercel or self-hosted) is defined in the spec. Read it before making infrastructure decisions. Key implications:
