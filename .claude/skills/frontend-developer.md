@@ -212,6 +212,55 @@ E2E tests live in `e2e/` at the project root.
 
 ---
 
+## Database
+
+When a database is needed, use **Turso** (libSQL).
+
+**Why Turso:** SQLite-compatible, edge-native, works on Vercel and self-hosted without connection pooling complexity. No separate database server to manage.
+
+**Setup:**
+```bash
+pnpm add @libsql/client drizzle-orm
+pnpm add -D drizzle-kit
+```
+
+**ORM:** Use **Drizzle ORM**. It's type-safe, thin, and maps directly to SQL — no magic, no hidden queries.
+
+**Client setup — create once, import everywhere:**
+```ts
+// lib/db.ts
+import { createClient } from '@libsql/client'
+import { drizzle } from 'drizzle-orm/libsql'
+import * as schema from './schema'
+
+const client = createClient({
+  url: process.env.TURSO_DATABASE_URL!,
+  authToken: process.env.TURSO_AUTH_TOKEN,
+})
+
+export const db = drizzle(client, { schema })
+```
+
+**Schema:** Define tables in `lib/schema.ts`. Use Drizzle's schema builder — never write raw `CREATE TABLE` SQL.
+
+**Queries go in `_queries.ts` files** co-located with the route that uses them. Queries fetch data only — no business logic.
+
+**Mutations go in `_actions.ts` files** as Server Actions. Validate input with Zod before touching the database.
+
+**Environment variables:**
+- `TURSO_DATABASE_URL` — the `libsql://` URL from Turso dashboard
+- `TURSO_AUTH_TOKEN` — the auth token (omit for local file-based SQLite in dev)
+
+**Local development:** Use a local SQLite file to avoid hitting the remote database during development:
+```ts
+// lib/db.ts (dev override)
+url: process.env.TURSO_DATABASE_URL ?? 'file:local.db'
+```
+
+**Migrations:** Use `drizzle-kit` to generate and apply migrations. Never edit the database schema manually.
+
+---
+
 ## Deployment Awareness
 
 Deployment target (Vercel or self-hosted) is defined in the spec. Read it before making infrastructure decisions. Key implications:
