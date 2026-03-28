@@ -26,7 +26,7 @@ Extract these from `$ARGUMENTS`:
 **CRITICAL: Only use what is literally present in `$ARGUMENTS`. Do NOT infer, recall, or substitute from prior conversation history, session context, or previous pipeline runs. If the argument is not in `$ARGUMENTS`, it does not exist.**
 
 - If `--prompt PATH` is provided: Read the file at PATH and use its contents as the REQUIREMENT. If the file doesn't exist, ERROR "Prompt file not found: PATH"
-- If both `--skip-analysis` and `--skip-design` are set: ERROR "Nothing to do — both loops are skipped."
+- If `--skip-analysis`, `--skip-design`, and `--skip-dev` are ALL set: ERROR "Nothing to do — all loops are skipped."
 - If no REQUIREMENT and no `--prompt` and no `--spec`: ERROR "Provide a requirement, a --prompt file, or an existing spec via --spec." — stop here, do nothing else.
 
 ## Calculate Max Iterations
@@ -106,14 +106,19 @@ design_version: 0
 
 Where {{INITIAL_ROLE}} is:
 - "planner" if analysis is NOT skipped
-- "designer" if analysis IS skipped
+- "designer" if analysis IS skipped and design is NOT skipped
+- "developer" if both analysis AND design are skipped (and dev is NOT skipped)
+- "presenter" if all three loops are skipped (should not happen — validation blocks this)
 
 If --spec was provided and skip_analysis is true:
 - Copy the existing spec to `.design-pipeline/spec.md`
-- Set current_role to "designer"
 
 If skip_analysis is true but no --spec:
-- Set current_role to "planner" (will run ONE pass without critic)
+- Set current_role to "planner" (will run ONE pass without critic, then jump to next active role)
+
+If skip_analysis AND skip_design are both true:
+- Expect `.design-pipeline/mockups/` to already exist from a prior design run
+- Set current_role to "developer" (unless skip_dev is also true → "presenter")
 
 Then proceed to execute the current_role.
 
