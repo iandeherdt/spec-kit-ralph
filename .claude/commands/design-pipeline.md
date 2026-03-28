@@ -40,9 +40,17 @@ max_iterations = analysis_iters + design_iters + dev_iters + 2  # +2 for init + 
 
 ## Initialize Ralph Loop
 
-1. Build the full pipeline prompt below, replacing all `{{PLACEHOLDER}}` values with the parsed arguments.
-2. Write the completed prompt to `.design-pipeline/pipeline-prompt.txt` using the **Write tool** (this is a normal project file, no permission issues).
-3. Write the ralph-loop state file directly via **Bash** (NOT the Write tool — Bash bypasses `.claude/` permission prompts):
+1. **Copy the COMPLETE pipeline prompt** from the `## THE PIPELINE PROMPT` section below — every line from the opening ` ``` ` fence to the closing ` ``` ` fence — into a string, replacing ONLY the `{{PLACEHOLDER}}` tokens with the parsed values. Do NOT summarise, shorten, rewrite, or omit any part. The prompt contains ~400 lines and every role definition must be present.
+
+2. Write that complete string to `.design-pipeline/pipeline-prompt.txt` using the **Write tool**.
+
+3. Verify it was written correctly:
+```bash
+wc -l .design-pipeline/pipeline-prompt.txt
+```
+If the line count is under 200, the prompt was truncated — rewrite it in full before continuing.
+
+4. Write the ralph-loop state file via **Bash** (NOT the Write tool):
 
 ```bash
 mkdir -p .claude .design-pipeline
@@ -55,9 +63,8 @@ echo "Ralph loop state written ($(wc -l < .claude/ralph-loop.local.md) lines)"
 ```
 
 **CRITICAL RULES**:
-- You MUST use the Bash tool to run the block above — never the Write or Edit tool
-- The pipeline-prompt.txt MUST be written BEFORE this step (step 2 above does this)
-- pipeline-prompt.txt contains ONLY the pipeline prompt text (the content between the outer ``` fences under ## THE PIPELINE PROMPT) — NOT the full command file
+- pipeline-prompt.txt must contain ALL role definitions (planner, analysis_critic, designer, design_critic, developer, code_critic, presenter) — even when loops are skipped. Skip logic is handled by the state file flags, not by pruning the prompt.
+- You MUST use the Bash tool for step 4 — never the Write or Edit tool
 - If `.claude/ralph-loop.local.md` exists and is non-empty, the loop is active — do NOT skip this step
 
 4. Then immediately proceed to execute the current role (read `.design-pipeline/pipeline-state.md` and act).
