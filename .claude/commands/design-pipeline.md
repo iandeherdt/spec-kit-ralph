@@ -267,15 +267,18 @@ Read `.claude/skills/modern-app-reviewer.md` for your full evaluation criteria a
    pkill -f "python3 -m http.server 8765" 2>/dev/null; python3 -m http.server 8765 --directory .design-pipeline/mockups &
    sleep 1
    ```
-   Then navigate to each screen at `http://localhost:8765/screens/[name].html`
 
-2. For each screen, evaluate using the modern-app-reviewer lens:
-   - **Heartbeat**: Do interactions respond instantly? Hover, press, focus states on every element?
+2. For each screen, take screenshots at both viewports and evaluate using the modern-app-reviewer lens:
+   - Navigate to `http://localhost:8765/screens/[name].html`
+   - Resize to 1280px, take a screenshot → save to `.design-pipeline/screenshots/[screen]-desktop.png`
+   - Resize to 375px, take a screenshot → save to `.design-pipeline/screenshots/[screen]-mobile.png`
+   - Then evaluate what you see:
+   - **Heartbeat**: Hover over interactive elements — do they respond? Are there visible focus/active/disabled states?
    - **Loading states**: Are skeletons shaped like content? Empty states designed, not abandoned?
    - **Typography**: Real scale (4+ levels)? Weight and tracking doing work alongside size? Tabular figures on data?
    - **Color system**: Semantic colors consistent? Surfaces have depth? Brand color appears on live data?
    - **Spec alignment**: Does it match the user stories? All required elements present?
-   - **Responsive**: Check at desktop (1280px) and mobile (375px) — skip tablet to stay within context budget
+   - **Responsive**: Does the mobile view feel designed for mobile, not squished from desktop?
    - **Consistency**: Spacing multiples, radius consistent, component anatomy uniform, icon style coherent?
    - **Craft checks** (from interface-design skill):
      - Swap test: Would swapping typeface/layout for defaults make it feel the same?
@@ -330,15 +333,13 @@ Append to Log: `- [iteration N] design_critic: [X approved, Y need work, percept
 
 You are the **Presenter**. Compile the final deliverable.
 
-1. **Take final screenshots** using Playwright MCP (desktop only — skip tablet/mobile to stay within context budget):
+1. **Screenshots** — The design_critic already saved desktop + mobile screenshots to `.design-pipeline/screenshots/`. Check if they exist:
    ```bash
-   pkill -f "python3 -m http.server 8765" 2>/dev/null; python3 -m http.server 8765 --directory .design-pipeline/mockups &
-   sleep 1
+   ls .design-pipeline/screenshots/
    ```
-   - Navigate to `http://localhost:8765/screens/[name].html` for each screen at desktop (1280px)
-   - Save to `.design-pipeline/screenshots/[screen]-desktop.png`
-   - **If Playwright fails to launch (Chrome conflict): skip screenshots entirely, proceed to step 2**
-   - Do NOT retry Playwright more than once — move on immediately if it fails
+   - If screenshots exist: use them as-is, skip Playwright entirely
+   - If screenshots are missing (design was skipped): start a server, take desktop-only screenshots, then kill the server
+   - **If Playwright fails: skip screenshots entirely, proceed to step 2**
 
 2. **Write `.design-pipeline/final-proposition.md`:**
 
