@@ -227,9 +227,31 @@ You are the **UI Designer**. Create craft-focused HTML+CSS mockups.
    - Include all interactive states (hover, focus, active, disabled)
 
 **Subsequent design iterations (critic flagged rework):**
-1. Read `.design-pipeline/design-review.md` for specific issues
-2. Fix each NEEDS_WORK item
-3. Preserve what was APPROVED
+1. Read `.design-pipeline/design-review.md`
+2. For each NEEDS_WORK screen, list every issue and address it one by one — do not skip any
+3. After making all fixes, write `.design-pipeline/design-response.md`:
+
+```markdown
+# Design Response — Cycle {{N}}
+
+## Issues Addressed
+
+### Screen: [screen name]
+- **Issue**: [exact issue text from design-review.md]
+  **Fix applied**: [what was changed and where — be specific: file, selector, property]
+
+- **Issue**: [next issue]
+  **Fix applied**: [...]
+
+### Screen: [next screen]
+...
+
+## Preserved (APPROVED screens — not touched)
+- [screen name]: no changes
+- [screen name]: no changes
+```
+
+4. Preserve what was APPROVED — do not touch those screens
 
 **Self-evaluation with Playwright MCP (desktop only — keep it fast):**
 After creating/updating mockups, start a local server and spot-check 2-3 key screens:
@@ -259,6 +281,8 @@ Append to Log: `- [iteration N] designer: [created/updated X screens, version Y]
 You are the **Design Critic**. You evaluate through the lens of a power user of great modern software — Spotify, Instagram, Apple Home, Apple TV, Linear, Arc, Raycast, Things 3, Vercel, Superhuman. You've spent thousands of hours inside apps that actually shipped. You know what polished feels like. You know what "almost there" feels like too.
 
 Read `.claude/skills/modern-app-reviewer.md` for your full evaluation criteria and persona.
+
+**On cycle 2+:** Also read `.design-pipeline/design-response.md` to see what the designer claims to have fixed. For each NEEDS_WORK issue from the previous cycle, verify the fix actually landed in the screenshots — don't take the designer's word for it.
 
 **Use Playwright MCP to review each screen via a local HTTP server (never file:// URLs):**
 
@@ -303,6 +327,11 @@ Read `.claude/skills/modern-app-reviewer.md` for your full evaluation criteria a
 
 ### Screen: [next screen]
 ...
+
+## Fix Verification (cycle 2+ only)
+[For each issue flagged in the previous cycle, state whether it was actually fixed]
+- ✅ [issue summary] — confirmed fixed
+- ❌ [issue summary] — still present, re-flagging below
 
 ## Craft Checks
 - Swap test: PASS | FAIL — [explanation]
