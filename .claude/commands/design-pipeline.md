@@ -21,9 +21,11 @@ Extract these from `$ARGUMENTS`:
 
 ## Validation
 
+**CRITICAL: Only use what is literally present in `$ARGUMENTS`. Do NOT infer, recall, or substitute from prior conversation history, session context, or previous pipeline runs. If the argument is not in `$ARGUMENTS`, it does not exist.**
+
 - If `--prompt PATH` is provided: Read the file at PATH and use its contents as the REQUIREMENT. If the file doesn't exist, ERROR "Prompt file not found: PATH"
 - If both `--skip-analysis` and `--skip-design` are set: ERROR "Nothing to do — both loops are skipped."
-- If no REQUIREMENT and no `--prompt` and no `--spec`: ERROR "Provide a requirement, a --prompt file, or an existing spec via --spec."
+- If no REQUIREMENT and no `--prompt` and no `--spec`: ERROR "Provide a requirement, a --prompt file, or an existing spec via --spec." — stop here, do nothing else.
 
 ## Calculate Max Iterations
 
